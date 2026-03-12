@@ -38,15 +38,28 @@ void print_thread(pthread_t thread) {
 
 void print_awaitee(Awaitee awaitee) {
     switch (awaitee.index()) {
-        case 0:
-            fprintf(stderr, "waiting for mutex %p",
-                    std::get<MutexInfo*>(awaitee));
+        case 0: {
+            auto* mi = std::get<MutexInfo*>(awaitee);
+            fprintf(stderr, "waiting for mutex %p",mi->get_wrapped());
             return;
-        case 1:
+        }
+        case 1: {
             const auto thread = std::get<pthread_t>(awaitee);
             fprintf(stderr, "joining thread ");
             print_thread(thread);
             return;
+        }
+        default: {
+            __builtin_unreachable();
+            return;
+        }
+    }
+}
+
+void print_owner_if_mutex(Awaitee awaitee) {
+    if (std::holds_alternative<MutexInfo*>(awaitee)) {
+        fprintf(stderr, ", which is held by ");
+        print_thread(std::get<MutexInfo*>(awaitee)->get_owner().value());
     }
 }
 
@@ -72,6 +85,17 @@ void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
     }
     fprintf(stderr, " by ");
     print_awaitee(awaitee);
+    if (std::holds_alternative<MutexInfo*>(awaitee)) {
+        const auto owner = std::get<MutexInfo*>(awaitee)->get_owner().value();
+        if (pthread_equal(thisThread, owner)) {
+            fprintf(stderr, ", which it already holds.");
+            fflush(stderr);
+            return;
+        } else {
+            fprintf(stderr, ", which is held by ");
+            print_thread(owner);
+        }
+    }
     fprintf(stderr, ":\n");
     auto threadToCheck = *getThread(awaitee);
     while (!pthread_equal(thisThread, threadToCheck)) {
@@ -81,6 +105,7 @@ void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
         print_thread(threadToCheck);
         fprintf(stderr, " is ");
         print_awaitee(nextAwaitee);
+        print_owner_if_mutex(nextAwaitee);
         fprintf(stderr, ".\n");
         const auto nextThreadToCheck = *getThread(nextAwaitee);
         threadToCheck = nextThreadToCheck;
@@ -92,8 +117,6 @@ void untangle::trap_if_deadlock(Awaitee awaitee) {
     const auto thisThread = pthread_self();
     int seenThreads = 0;
     int seenMutexes = 0;
-    if (std::holds_alternative<MutexInfo*>(awaitee))
-        ++seenMutexes;
     auto threadToCheck = getThread(awaitee);
     while (threadToCheck.has_value()) {
         ++seenThreads;
@@ -138,4 +161,8 @@ int MutexInfo::unlock() {
 
 std::optional<pthread_t> MutexInfo::get_owner() const {
     return owner;
+}
+
+pthread_mutex_t* MutexInfo::get_wrapped() const {
+    return wrapped;
 }

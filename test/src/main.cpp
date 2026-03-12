@@ -73,9 +73,21 @@ void selfDeadlock() {
     std::lock_guard l2(m);
 }
 
+void mutexAndJoin() {
+    pthread_setname_np(pthread_self(), "outer");
+    std::mutex m;
+    std::lock_guard outerLock(m);
+    std::thread t([&] {
+        pthread_setname_np(pthread_self(), "inner");
+        std::lock_guard innerLock(m);
+    });
+    t.join();
+}
+
 int main() {
-    selfDeadlock();
-    JoinCycle c(5);
-    c.getFirst()->join();
+    mutexAndJoin();
+    //selfDeadlock();
+    //JoinCycle c(5);
+    //c.getFirst()->join();
     return 0;
 }

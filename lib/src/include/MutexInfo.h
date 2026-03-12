@@ -18,6 +18,7 @@ namespace untangle {
         int lock();
         int unlock();
         [[nodiscard]] std::optional<pthread_t> get_owner() const;
+        [[nodiscard]] pthread_mutex_t* get_wrapped() const;
     };
 
     using Awaitee = std::variant<MutexInfo*, pthread_t>;
