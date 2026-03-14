@@ -6,13 +6,13 @@ add_executable(untangle-test
         src/utility/OutputCapture.cpp
         src/include/WaitCycle.h
         src/utility/WaitCycle.cpp
-        src/main.cpp)
+)
 
 target_include_directories(untangle-test PRIVATE src/include)
 
 target_link_libraries(untangle-test
         PRIVATE untangle
-        PRIVATE GTest::gtest)
+        PRIVATE GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(untangle-test)
