@@ -30,5 +30,4 @@ namespace untangle {
     extern OriginalFunctions originalFunctions;
 
     extern pthread_mutex_t deadlockCheckMutex;
-
 }

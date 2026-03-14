@@ -2,6 +2,7 @@
 #include <csignal>
 #include <type_traits>
 #include "pthreads_intercept.h"
+#include "write.h"
 
 using namespace untangle;
 
@@ -9,8 +10,8 @@ MutexInfo::MutexInfo(pthread_mutex_t* wrapped)
     : wrapped(wrapped) {
 }
 
-const char* MutexInfo::get_name() const {
-    return name.c_str();
+std::string MutexInfo::get_name() const {
+    return name;
 }
 
 void MutexInfo::set_name(const char* name) {
@@ -33,19 +34,23 @@ void print_thread(pthread_t thread) {
     constexpr auto MAX_NAME_LENGTH = 16;
     char name[MAX_NAME_LENGTH] = {};
     pthread_getname_np(thread, name, MAX_NAME_LENGTH);
-    fprintf(stderr, "\"%s\" (%#lx)", name, thread);
+    writeFormat("\"%s\" (%#lx)", name, thread);
 }
 
 void print_awaitee(Awaitee awaitee) {
     switch (awaitee.index()) {
         case 0: {
             auto* mi = std::get<MutexInfo*>(awaitee);
-            fprintf(stderr, "waiting for mutex %p",mi->get_wrapped());
+            auto mutexName = mi->get_name();
+            if (mutexName.empty())
+                writeFormat("waiting for mutex %p", mi->get_wrapped());
+            else
+                writeFormat("waiting for mutex \"%s\" (%p)", mutexName.c_str(), mi->get_wrapped());
             return;
         }
         case 1: {
             const auto thread = std::get<pthread_t>(awaitee);
-            fprintf(stderr, "joining thread ");
+            write("joining thread ");
             print_thread(thread);
             return;
         }
@@ -58,7 +63,7 @@ void print_awaitee(Awaitee awaitee) {
 
 void print_owner_if_mutex(Awaitee awaitee) {
     if (std::holds_alternative<MutexInfo*>(awaitee)) {
-        fprintf(stderr, ", which is held by ");
+        write(", which is held by thread ");
         print_thread(std::get<MutexInfo*>(awaitee)->get_owner().value());
     }
 }
@@ -68,45 +73,58 @@ std::unordered_map<pthread_t, Awaitee> untangle::waiters;
 void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
     const auto thisThread = pthread_self();
     static_assert(std::is_integral_v<pthread_t>);
-    fprintf(stderr, "Thread ");
+    write("untangle: Thread ");
     print_thread(thisThread);
-    fprintf(stderr, " created a deadlock");
+    write(" created a deadlock");
     if (threadCount > 1 || mutexCount > 1) {
-        fprintf(stderr, " involving");
+        write(" involving");
         if (threadCount > 1) {
-            fprintf(stderr, " %d threads", threadCount);
+            writeFormat(" %d threads", threadCount);
         }
         if (mutexCount > 1) {
             if (threadCount > 1) {
-                fprintf(stderr, " and");
+                write(" and");
             }
-            fprintf(stderr, " %d mutexes", mutexCount);
+            writeFormat(" %d mutexes", mutexCount);
         }
     }
-    fprintf(stderr, " by ");
-    print_awaitee(awaitee);
-    if (std::holds_alternative<MutexInfo*>(awaitee)) {
-        const auto owner = std::get<MutexInfo*>(awaitee)->get_owner().value();
-        if (pthread_equal(thisThread, owner)) {
-            fprintf(stderr, ", which it already holds.");
-            fflush(stderr);
-            return;
-        } else {
-            fprintf(stderr, ", which is held by ");
-            print_thread(owner);
+    write(" by ");
+    switch (awaitee.index()) {
+        case 0: {
+            const auto owner = std::get<MutexInfo*>(awaitee)->get_owner().value();
+            print_awaitee(awaitee);
+            if (pthread_equal(thisThread, owner)) {
+                write(", which it already holds.\n");
+                return;
+            } else {
+                write(", which is held by thread ");
+                print_thread(owner);
+            }
+            break;
+        }
+        case 1: {
+            const auto otherThread = std::get<pthread_t>(awaitee);
+            if (pthread_equal(thisThread, otherThread)) {
+                write("joining itself.\n");
+                return;
+            } else {
+                write("joining thread ");
+                print_thread(otherThread);
+                break;
+            }
         }
     }
-    fprintf(stderr, ":\n");
+    write(":\n");
     auto threadToCheck = *getThread(awaitee);
     while (!pthread_equal(thisThread, threadToCheck)) {
         const auto nextMutexIt = waiters.find(threadToCheck);
         const auto nextAwaitee = nextMutexIt->second;
-        fprintf(stderr, "    ");
+        write("untangle:  Thread ");
         print_thread(threadToCheck);
-        fprintf(stderr, " is ");
+        write(" is ");
         print_awaitee(nextAwaitee);
         print_owner_if_mutex(nextAwaitee);
-        fprintf(stderr, ".\n");
+        write(".\n");
         const auto nextThreadToCheck = *getThread(nextAwaitee);
         threadToCheck = nextThreadToCheck;
     }
@@ -118,6 +136,8 @@ void untangle::trap_if_deadlock(Awaitee awaitee) {
     int seenThreads = 0;
     int seenMutexes = 0;
     auto threadToCheck = getThread(awaitee);
+    if (std::holds_alternative<MutexInfo*>(awaitee))
+        ++seenMutexes;
     while (threadToCheck.has_value()) {
         ++seenThreads;
         if (pthread_equal(thisThread, *threadToCheck)) {
@@ -129,7 +149,7 @@ void untangle::trap_if_deadlock(Awaitee awaitee) {
             return;
         }
         const auto nextAwaitee = nextMutexIt->second;
-        if (std::holds_alternative<MutexInfo*>(awaitee))
+        if (std::holds_alternative<MutexInfo*>(nextAwaitee))
             ++seenMutexes;
         const auto nextThreadToCheck = getThread(nextAwaitee);
         if (!nextThreadToCheck.has_value())

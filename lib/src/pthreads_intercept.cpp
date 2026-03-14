@@ -2,7 +2,9 @@
 #include "MutexInfo.h"
 #include <csignal>
 #include <cstdio>
+#include <cstring>
 #include <dlfcn.h>
+#include <unistd.h>
 #include <unordered_map>
 
 
@@ -43,7 +45,6 @@ bool tryGetMutexInfo(pthread_mutex_t* mutex, MutexInfo** mi) {
 
 int pthread_mutex_init(pthread_mutex_t* __mutex,
                        const pthread_mutexattr_t* __mutexattr) noexcept(true) {
-    printf("Hello from pthread_mutex_init\n");
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
     if (MutexInfo* mi; tryGetMutexInfo(__mutex, &mi)) [[unlikely]] {
         fprintf(stderr, "untangle: Error detected: Tried to initialize a mutex that is already initialized\n");
@@ -61,7 +62,6 @@ int pthread_mutex_destroy(pthread_mutex_t* __mutex) noexcept(true) {
 }
 
 int pthread_mutex_lock(pthread_mutex_t* __mutex) noexcept(true) {
-    printf("Hello from pthread_mutex_lock\n");
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
     MutexInfo* mi;
     if (!tryGetMutexInfo(__mutex, &mi)) {
@@ -76,7 +76,6 @@ int pthread_mutex_lock(pthread_mutex_t* __mutex) noexcept(true) {
 }
 
 int pthread_mutex_unlock(pthread_mutex_t* __mutex) noexcept(true) {
-    printf("Hello from pthread_mutex_unlock\n");
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
     int ret;
     if (MutexInfo* mi; tryGetMutexInfo(__mutex, &mi)) {
@@ -91,7 +90,6 @@ int pthread_mutex_unlock(pthread_mutex_t* __mutex) noexcept(true) {
 }
 
 int pthread_join(pthread_t __th, void** __thread_return) {
-    printf("Hello from pthread_join\n");
     const auto thisThread = pthread_self();
     originalFunctions.pthread_mutex_lock(&deadlockCheckMutex);
     waiters[thisThread] = __th;
@@ -100,6 +98,33 @@ int pthread_join(pthread_t __th, void** __thread_return) {
     const auto ret = originalFunctions.pthread_join(__th, __thread_return);
     waiters.erase(thisThread);
     return ret;
+}
+
+extern "C" {
+void untangle_set_mutex_name(pthread_mutex_t* mutex, const char* name) {
+    originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
+    MutexInfo* mi;
+    if (!tryGetMutexInfo(mutex, &mi)) {
+        mutexInfos.insert({mutex, mi = new MutexInfo(mutex)});
+    }
+    mi->set_name(name);
+    originalFunctions.pthread_mutex_unlock(&mutexInfosMutex);
+}
+
+int untangle_get_mutex_name(pthread_mutex_t* mutex, char* output, int maxOutputLength) {
+    originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
+    int ret;
+    MutexInfo* mi;
+    if (tryGetMutexInfo(mutex, &mi)) {
+        const auto actualLength = static_cast<int>(mi->get_name().size());
+        std::memcpy(output, mi->get_name().c_str(), std::min(actualLength, maxOutputLength));
+        ret = actualLength;
+    } else {
+        ret = -1;
+    }
+    originalFunctions.pthread_mutex_unlock(&mutexInfosMutex);
+    return ret;
+}
 }
 
 __attribute__((constructor))
