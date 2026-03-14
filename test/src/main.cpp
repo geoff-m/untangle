@@ -1,11 +1,8 @@
-#include <cstdio>
-#include <thread>
+#include <gtest/gtest.h>
 
-int main() {
-    std::thread t([&]{});
-    t.join();
-
-    std::mutex m;
-    std::lock_guard lock(m);
-    return 0;
+int main(int argc, char** argv) {
+    //GTEST_FLAG_SET(death_test_style, "threadsafe");
+    GTEST_FLAG_SET(death_test_style, "fast");
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
