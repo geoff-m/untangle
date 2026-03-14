@@ -4,12 +4,22 @@
 #include <gtest/gtest.h>
 #include "WaitCycle.h"
 
+TEST(Basic, NoDeadlock) {
+    std::mutex m;
+    std::lock_guard l1(m);
+    std::thread t([] {
+        std::mutex m;
+        std::lock_guard l1(m);
+    });
+    t.join();
+}
+
 TEST(Basic, SelfDeadlock) {
     std::mutex m;
     untangle_set_mutex_name(m.native_handle(), "m");
     std::lock_guard l1(m);
     EXPECT_EXIT(
-        {std::lock_guard l2(m);},
+        std::lock_guard l2(m);,
         ::testing::KilledBySignal(SIGTRAP),
         "already");
 }
@@ -28,16 +38,14 @@ void mutexAndJoin() {
 
 TEST(Basic, MutexAndJoin) {
     EXPECT_EXIT(
-        {
-            mutexAndJoin();
-        },
+        mutexAndJoin();,
         ::testing::KilledBySignal(SIGTRAP),
         "2 threads by waiting for mutex \"m\"");
 }
 
 TEST(Basic, JoinSelf) {
     EXPECT_EXIT(
-        {pthread_join(pthread_self(), nullptr);},
+        pthread_join(pthread_self(), nullptr);,
         ::testing::KilledBySignal(SIGTRAP),
         "itself");
 }
