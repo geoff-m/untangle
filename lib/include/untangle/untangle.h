@@ -1,11 +1,13 @@
 #pragma once
 #include <pthread.h>
-#include <cstddef>
 
 #define UNTANGLE_EXPORT __attribute__((__visibility__("default")))
 
 #ifdef __cplusplus
+#include <cstddef>
 extern "C" {
+#else
+#include <stddef.h>
 #endif
 
     UNTANGLE_EXPORT

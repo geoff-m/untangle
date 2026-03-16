@@ -6,7 +6,7 @@
 std::shared_ptr<std::thread> WaitCycle::makeWaiter(int index, int waitForIndex) {
     return std::make_shared<std::thread>([&, index, waitForIndex] {
         char name[16] = {};
-        snprintf(name, sizeof(name), "cycle_%d", index);
+        snprintf(name, sizeof(name), "cycle_%d", index + 1);
         pthread_setname_np(pthread_self(), name);
         std::lock_guard myLock(taskMutexes[index]);
         std::unique_lock lock(taskStateMutex);
@@ -34,7 +34,7 @@ WaitCycle::WaitCycle(int length) {
     for (int i = 0; i < length; i++) {
         new(&taskMutexes[i]) std::mutex();
         untangle_set_mutex_name(taskMutexes[i].native_handle(),
-                                ("m" + std::to_string(i)).c_str());
+                                ("m" + std::to_string(i + 1)).c_str());
         tasks[i] = makeWaiter(i, (i + 1) % length);
     }
 }
