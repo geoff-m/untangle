@@ -27,6 +27,7 @@ endif()
 
 install(TARGETS untangle-app RUNTIME DESTINATION bin COMPONENT Runtime)
 install(TARGETS untangle LIBRARY DESTINATION lib COMPONENT Runtime)
+install(DIRECTORY lib/include/ DESTINATION include COMPONENT Development)
 set(CPACK_PACKAGE_VENDOR "Geoff McQueen")
 set(CPACK_PACKAGE_CONTACT "geoff@geoff.space")
 set(CPACK_RPM_PACKAGE_LICENSE "MIT")

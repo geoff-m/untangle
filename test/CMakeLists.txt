@@ -6,6 +6,8 @@ add_executable(untangle-test
         src/utility/OutputCapture.cpp
         src/include/WaitCycle.h
         src/utility/WaitCycle.cpp
+        src/TestMutexName.cpp
+        src/TestSetWriter.cpp
 )
 
 target_include_directories(untangle-test PRIVATE src/include)

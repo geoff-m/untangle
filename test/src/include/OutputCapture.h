@@ -6,7 +6,7 @@ class OutputCapture {
 
 public:
     void append(const char* text, size_t length);
-    [[nodiscard]] std::istream& getOutput();
+    [[nodiscard]] const std::stringstream& getOutput();
 };
 
 void capture(const char* text, size_t length, void* outputCapture);

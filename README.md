@@ -52,8 +52,34 @@ which corresponds as expected to the message we got from untangle.
 Shared object interposition via LD_PRELOAD.
 
 ## Limitations
-Untangle detects only deadlocks formed by calls to `pthreads_mutex_lock` and `pthreads_join`,
+Untangle detects only deadlocks formed by calls to `pthreads_mutex_lock`, `pthreads_join`,
 and mixtures thereof.
 Many C++ applications rely on these APIs indirectly via typical standard library implementations,
 and many C applications may use them directly.
-Untangle does not detect deadlocks caused in other ways.
+However, untangle does not detect deadlocks caused in other ways.
+
+## Extras
+Normal usage of untangled is like above--simply running `untangled [your-application]`,
+likely inside a debugger.
+However, if you're able to rebuild the debuggee,
+you can take steps to get even more out of untangle.
+Header `<untangle/untangle.h>` declares some utility functions that can enhance untangle's output.
+After including this header, you'll need to make your linker happy,
+such as by including `-luntangle` in your compile command.
+
+### Giving a name to a mutex
+Call `void untangle_set_mutex_name(pthread_mutex_t* mutex, const char* name)`
+to give a name to a mutex.
+This name will show up in untangle messages if the mutex is involved in a deadlock.
+
+### Giving a name to a thread
+Untangle doesn't provide a function for this purpose, but I mention this idea anyway as a tip.
+Use `pthread_setname_np` (defined in `<pthread.h>`) for this. 
+
+### Controlling output
+Normally, untangle writes its messages to stderr.
+You can override this by calling
+`void untangle_set_writer(void (*writer)(const char*, size_t, void*), void* state)`.
+When untangle wants to write something, it will make a call like
+`writer(text, textLength, state)` where `writer` and `state` have the values you provided when you called
+`untangle_set_writer`.

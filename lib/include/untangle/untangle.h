@@ -2,11 +2,21 @@
 #include <pthread.h>
 #include <cstddef>
 
+#define UNTANGLE_EXPORT __attribute__((__visibility__("default")))
+
+#ifdef __cplusplus
 extern "C" {
+#endif
+
+    UNTANGLE_EXPORT
     void untangle_set_mutex_name(pthread_mutex_t* mutex, const char* name);
 
+    UNTANGLE_EXPORT
     int untangle_get_mutex_name(pthread_mutex_t* mutex, char* output, int maxOutputLength);
 
-    using WriteCallback = void (*)(const char*, size_t, void*);
-    void untangle_set_writer(WriteCallback writer, void* state);
+    UNTANGLE_EXPORT
+    void untangle_set_writer(void (*writer)(const char*, size_t, void*), void* state);
+
+#ifdef __cplusplus
 }
+#endif

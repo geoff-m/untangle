@@ -116,8 +116,10 @@ int untangle_get_mutex_name(pthread_mutex_t* mutex, char* output, int maxOutputL
     int ret;
     MutexInfo* mi;
     if (tryGetMutexInfo(mutex, &mi)) {
-        const auto actualLength = static_cast<int>(mi->get_name().size());
-        std::memcpy(output, mi->get_name().c_str(), std::min(actualLength, maxOutputLength));
+        const auto actualLength = static_cast<int>(mi->get_name().size() + 1); // add 1 for null terminator
+        const auto actualEnd = std::min(actualLength, maxOutputLength) - 1;
+        std::memcpy(output, mi->get_name().c_str(), actualEnd);
+        output[actualEnd] = 0;
         ret = actualLength;
     } else {
         ret = -1;

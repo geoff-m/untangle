@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <cstdio>
 
-WriteCallback untangle::writer;
+untangle::WriteCallback untangle::writer;
 void* untangle::writerState;
 
 constexpr auto MESSAGE_BUFFER_SIZE = 1024;
@@ -26,7 +26,7 @@ void destroyWrite() {
 }
 
 extern "C" {
-void untangle_set_writer(WriteCallback writer, void* state) {
+void untangle_set_writer(untangle::WriteCallback writer, void* state) {
     untangle::writer = writer;
     untangle::writerState = state;
 }

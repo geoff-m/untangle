@@ -4,7 +4,7 @@ void OutputCapture::append(const char* text, size_t length) {
     ss.write(text, static_cast<long>(length));
 }
 
-std::istream& OutputCapture::getOutput() {
+const std::stringstream& OutputCapture::getOutput() {
     return ss;
 }
 
