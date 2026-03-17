@@ -13,8 +13,6 @@ namespace untangle {
     public:
         explicit MutexInfo(pthread_mutex_t* wrapped);
 
-        ~MutexInfo();
-
         void set_name(const char* name);
 
         [[nodiscard]] std::string get_name() const;

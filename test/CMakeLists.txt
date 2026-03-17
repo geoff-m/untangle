@@ -17,4 +17,4 @@ target_link_libraries(untangle-test
         PRIVATE GTest::gtest_main)
 
 include(GoogleTest)
-gtest_discover_tests(untangle-test)
+gtest_discover_tests(untangle-test DISCOVERY_MODE PRE_TEST)
