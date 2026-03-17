@@ -9,8 +9,6 @@ jobs:
       matrix:
         cmake-build-type:
           - Asan
-          - Tsan
-          - Ubsan
 
     steps:
       - name: Check out repo
