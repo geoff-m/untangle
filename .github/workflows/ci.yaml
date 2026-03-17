@@ -1,0 +1,27 @@
+name: CI Workflow
+on: [ push ]
+
+jobs:
+  unit-tests:
+    name: Unit tests with sanitizer
+    runs-on: [ 'ubuntu-latest' ]
+    strategy:
+      matrix:
+        cmake-build-type:
+          - Asan
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and run inside container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/tests.dockerfile
+          outputs: type=cacheonly
+          build-args: |
+            CMAKE_BUILD_TYPE=${{matrix.cmake-build-type}}

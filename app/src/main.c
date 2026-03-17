@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-constexpr char LIBRARY_PATH[] = LIBRARY_DIR "/lib/libuntangle.so";
+const char LIBRARY_PATH[] = LIBRARY_DIR "/lib/libuntangle.so";
 
 void showUsage(const char* programName) {
     printf("Usage: %s [program] {program args}\n", programName);

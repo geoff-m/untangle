@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(untangle VERSION 1.2)
 option(UNTANGLE_TEST "Build tests" ON)
+include(cmake/asan.cmake)
 
 set(CMAKE_CXX_STANDARD 20)
 

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dlfcn.h>
+#include <memory>
 #include <unistd.h>
 #include <unordered_map>
 
@@ -31,26 +32,26 @@ void OriginalFunctions::initialize() {
 OriginalFunctions untangle::originalFunctions;
 
 pthread_mutex_t mutexInfosMutex;
-std::unordered_map<pthread_mutex_t*, MutexInfo*> mutexInfos;
+std::unordered_map<pthread_mutex_t*, std::shared_ptr<MutexInfo>> mutexInfos;
 pthread_mutex_t untangle::deadlockCheckMutex;
 
-bool tryGetMutexInfo(pthread_mutex_t* mutex, MutexInfo** mi) {
+bool tryGetMutexInfo(pthread_mutex_t* mutex, std::shared_ptr<MutexInfo>& mi) {
     auto it = mutexInfos.find(mutex);
     if (it == mutexInfos.end()) {
         return false;
     }
-    *mi = it->second;
+    mi = it->second;
     return true;
 }
 
 int pthread_mutex_init(pthread_mutex_t* __mutex,
                        const pthread_mutexattr_t* __mutexattr) noexcept(true) {
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
-    if (MutexInfo* mi; tryGetMutexInfo(__mutex, &mi)) [[unlikely]] {
+    if (std::shared_ptr<MutexInfo> mi; tryGetMutexInfo(__mutex, mi)) [[unlikely]] {
         fprintf(stderr, "untangle: Error detected: Tried to initialize a mutex that is already initialized\n");
         raise(SIGTRAP);
     } else {
-        mutexInfos.insert({__mutex, new MutexInfo(__mutex)});
+        mutexInfos.insert({__mutex, std::make_shared<MutexInfo>(__mutex)});
     }
     const auto ret = originalFunctions.pthread_mutex_init(__mutex, __mutexattr);;
     originalFunctions.pthread_mutex_unlock(&mutexInfosMutex);
@@ -63,11 +64,11 @@ int pthread_mutex_destroy(pthread_mutex_t* __mutex) noexcept(true) {
 
 int pthread_mutex_lock(pthread_mutex_t* __mutex) noexcept(true) {
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
-    MutexInfo* mi;
-    if (!tryGetMutexInfo(__mutex, &mi)) {
+    std::shared_ptr<MutexInfo> mi;
+    if (!tryGetMutexInfo(__mutex, mi)) {
         // Unknown mutex.
         // Assume __mutex is a valid mutex pointer and create a new MutexInfo.
-        mi = new MutexInfo(__mutex);
+        mi = std::make_shared<MutexInfo>(__mutex);
         mutexInfos.insert({__mutex, mi});
     }
     originalFunctions.pthread_mutex_unlock(&mutexInfosMutex);
@@ -78,7 +79,7 @@ int pthread_mutex_lock(pthread_mutex_t* __mutex) noexcept(true) {
 int pthread_mutex_unlock(pthread_mutex_t* __mutex) noexcept(true) {
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
     int ret;
-    if (MutexInfo* mi; tryGetMutexInfo(__mutex, &mi)) {
+    if (std::shared_ptr<MutexInfo> mi; tryGetMutexInfo(__mutex, mi)) {
         ret = mi->unlock();
     } else {
         // Unknown mutex.
@@ -103,9 +104,9 @@ int pthread_join(pthread_t __th, void** __thread_return) {
 extern "C" {
 void untangle_set_mutex_name(pthread_mutex_t* mutex, const char* name) {
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
-    MutexInfo* mi;
-    if (!tryGetMutexInfo(mutex, &mi)) {
-        mutexInfos.insert({mutex, mi = new MutexInfo(mutex)});
+    std::shared_ptr<MutexInfo> mi;
+    if (!tryGetMutexInfo(mutex, mi)) {
+        mutexInfos.insert({mutex, mi = std::make_shared<MutexInfo>(mutex)});
     }
     mi->set_name(name);
     originalFunctions.pthread_mutex_unlock(&mutexInfosMutex);
@@ -114,8 +115,8 @@ void untangle_set_mutex_name(pthread_mutex_t* mutex, const char* name) {
 int untangle_get_mutex_name(pthread_mutex_t* mutex, char* output, int maxOutputLength) {
     originalFunctions.pthread_mutex_lock(&mutexInfosMutex);
     int ret;
-    MutexInfo* mi;
-    if (tryGetMutexInfo(mutex, &mi)) {
+    std::shared_ptr<MutexInfo> mi;
+    if (tryGetMutexInfo(mutex, mi)) {
         const auto actualLength = static_cast<int>(mi->get_name().size() + 1); // add 1 for null terminator
         const auto actualEnd = std::min(actualLength, maxOutputLength) - 1;
         std::memcpy(output, mi->get_name().c_str(), actualEnd);
