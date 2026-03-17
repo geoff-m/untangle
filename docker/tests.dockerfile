@@ -14,6 +14,7 @@ COPY CMakeLists.txt CMakeLists.txt
 COPY cmake cmake
 COPY test test
 COPY lib lib
+COPY app app
 
 WORKDIR build
 RUN cmake \
