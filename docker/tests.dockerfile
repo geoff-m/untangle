@@ -15,7 +15,7 @@ COPY cmake cmake
 COPY test test
 COPY lib lib
 
-# Build
+WORKDIR build
 RUN cmake \
   -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
   -DUNTANGLE_TEST=ON \
