@@ -26,8 +26,8 @@ RUN cmake \
   .. && cmake --build . -j$(nproc)
 
 # Disable crash reporting.
-# We have tests that are expected exit with SIGTRAP, and apport slows them down.
-RUN systemctl status apport
+# We have tests that are expected exit with SIGTRAP, and crash reporting will slow these down.
+RUN echo -e 'Storage=none\nProcessSizeMax=0' > /etc/systemd/coredump.conf
 
 RUN time ASAN_OPTIONS=detect_invalid_join=0 ctest -j$(nproc) --output-on-failure
 
