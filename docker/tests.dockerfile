@@ -16,6 +16,7 @@ COPY cmake cmake
 COPY test test
 COPY lib lib
 COPY app app
+COPY LICENSE LICENSE
 
 WORKDIR build
 RUN cmake \
