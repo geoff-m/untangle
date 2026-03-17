@@ -5,6 +5,7 @@ ARG CMAKE_BUILD_TYPE=Asan
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
+    git \
     clang \
     cmake \
     ninja-build
