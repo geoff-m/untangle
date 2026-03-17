@@ -29,6 +29,6 @@ RUN cmake \
 # We have tests that are expected exit with SIGTRAP, and crash reporting will slow these down.
 RUN echo -e 'Storage=none\nProcessSizeMax=0' > /etc/systemd/coredump.conf
 
-RUN time ASAN_OPTIONS=detect_invalid_join=0 ctest -j$(nproc) --output-on-failure
+RUN ASAN_OPTIONS=detect_invalid_join=0 ctest -j$(nproc) --output-on-failure
 
 
