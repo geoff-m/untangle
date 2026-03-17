@@ -23,7 +23,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/tests.docker
+          file: docker/tests.dockerfile
           outputs: type=cacheonly
           build-args: |
             CMAKE_BUILD_TYPE=${{matrix.cmake-build-type}}
