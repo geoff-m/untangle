@@ -59,7 +59,7 @@ and many C applications may use them directly.
 However, untangle does not detect deadlocks caused in other ways.
 
 ## Extras
-Normal usage of untangled is like above--simply running `untangled [your-application]`,
+Normal usage of untangle is like above--simply running `untangle [your-application]`,
 likely inside a debugger.
 However, if you're able to rebuild the debuggee,
 you can take steps to get even more out of untangle.
