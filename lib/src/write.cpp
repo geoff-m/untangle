@@ -1,7 +1,7 @@
 #include "write.h"
 #include <cstring>
 #include <cstdarg>
-#include <unistd.h>
+#include <platform.h>
 #include <cstdio>
 
 untangle::WriteCallback untangle::writer;
@@ -10,17 +10,13 @@ void* untangle::writerState;
 constexpr auto MESSAGE_BUFFER_SIZE = 1024;
 char* messageBuffer;
 
-void defaultWriter(const char* text, size_t length, void*) {
-    ::write(STDERR_FILENO, text, length);
-}
-
-__attribute__((constructor))
+// todo: __attribute__((constructor))
 void constructWrite() {
     messageBuffer = new char[MESSAGE_BUFFER_SIZE];
-    untangle_set_writer(defaultWriter, nullptr);
+    untangle_set_writer(untangle::write_stdout, nullptr);
 }
 
-__attribute__((destructor))
+// todo: __attribute__((destructor))
 void destroyWrite() {
     delete[] messageBuffer;
 }

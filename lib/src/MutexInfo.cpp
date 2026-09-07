@@ -1,12 +1,12 @@
 #include "MutexInfo.h"
 #include <csignal>
 #include <type_traits>
-#include "pthreads_intercept.h"
+#include "include/platform.h"
 #include "write.h"
 
 using namespace untangle;
 
-MutexInfo::MutexInfo(pthread_mutex_t* wrapped)
+MutexInfo::MutexInfo(native_mutex_handle wrapped)
     : wrapped(wrapped) {
 }
 
@@ -18,23 +18,21 @@ void MutexInfo::set_name(const char* name) {
     this->name = name;
 }
 
-[[nodiscard]] std::optional<pthread_t> getThread(Awaitee awaitee) {
+[[nodiscard]] std::optional<native_thread_handle> getThread(Awaitee awaitee) {
     switch (awaitee.index()) {
         case 0:
             return std::get<MutexInfo*>(awaitee)->get_owner();
         case 1:
-            return std::get<pthread_t>(awaitee);
+            return std::get<native_thread_handle>(awaitee);
         default:
-            __builtin_unreachable();
+            unreachable();
             return {};
     }
 }
 
-void print_thread(pthread_t thread) {
-    constexpr auto MAX_NAME_LENGTH = 16;
-    char name[MAX_NAME_LENGTH] = {};
-    pthread_getname_np(thread, name, MAX_NAME_LENGTH);
-    writeFormat("\"%s\" (%#lx)", name, thread);
+void print_thread(native_thread_handle thread) {
+    const auto name = get_thread_name(thread);
+    writeFormat("\"%s\" (%#lx)", name.c_str(), thread);
 }
 
 void print_awaitee(Awaitee awaitee) {
@@ -49,13 +47,13 @@ void print_awaitee(Awaitee awaitee) {
             return;
         }
         case 1: {
-            const auto thread = std::get<pthread_t>(awaitee);
+            const auto thread = std::get<native_thread_handle>(awaitee);
             write("joining thread ");
             print_thread(thread);
             return;
         }
         default: {
-            __builtin_unreachable();
+            unreachable();
             return;
         }
     }
@@ -68,11 +66,11 @@ void print_owner_if_mutex(Awaitee awaitee) {
     }
 }
 
-std::unordered_map<pthread_t, Awaitee> untangle::waiters;
+std::unordered_map<native_thread_handle, Awaitee> untangle::waiters;
 
 void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
-    const auto thisThread = pthread_self();
-    static_assert(std::is_integral_v<pthread_t>);
+    const auto thisThread = get_current_thread();
+    static_assert(std::is_integral_v<native_thread_handle>);
     write("untangle: Thread ");
     print_thread(thisThread);
     write(" created a deadlock");
@@ -93,7 +91,7 @@ void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
         case 0: {
             const auto owner = std::get<MutexInfo*>(awaitee)->get_owner().value();
             print_awaitee(awaitee);
-            if (pthread_equal(thisThread, owner)) {
+            if (threads_equal(thisThread, owner)) {
                 write(", which it already holds.\n");
                 return;
             } else {
@@ -103,8 +101,8 @@ void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
             break;
         }
         case 1: {
-            const auto otherThread = std::get<pthread_t>(awaitee);
-            if (pthread_equal(thisThread, otherThread)) {
+            const auto otherThread = std::get<native_thread_handle>(awaitee);
+            if (threads_equal(thisThread, otherThread)) {
                 write("joining itself.\n");
                 return;
             } else {
@@ -116,7 +114,7 @@ void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
     }
     write(":\n");
     auto threadToCheck = *getThread(awaitee);
-    while (!pthread_equal(thisThread, threadToCheck)) {
+    while (!threads_equal(thisThread, threadToCheck)) {
         const auto nextMutexIt = waiters.find(threadToCheck);
         const auto nextAwaitee = nextMutexIt->second;
         write("untangle:  Thread ");
@@ -132,7 +130,7 @@ void print_deadlock(Awaitee awaitee, int threadCount, int mutexCount) {
 }
 
 void untangle::trap_if_deadlock(Awaitee awaitee) {
-    const auto thisThread = pthread_self();
+    const auto thisThread = get_current_thread();
     int seenThreads = 0;
     int seenMutexes = 0;
     auto threadToCheck = getThread(awaitee);
@@ -140,9 +138,9 @@ void untangle::trap_if_deadlock(Awaitee awaitee) {
         ++seenMutexes;
     while (threadToCheck.has_value()) {
         ++seenThreads;
-        if (pthread_equal(thisThread, *threadToCheck)) {
+        if (threads_equal(thisThread, *threadToCheck)) {
             print_deadlock(awaitee, seenThreads, seenMutexes);
-            raise(SIGTRAP);
+            break_to_debugger();
         }
         const auto nextMutexIt = waiters.find(threadToCheck.value());
         if (nextMutexIt == waiters.end()) {
@@ -159,30 +157,30 @@ void untangle::trap_if_deadlock(Awaitee awaitee) {
 }
 
 int MutexInfo::lock() {
-    const auto thisThread = pthread_self();
-    originalFunctions.pthread_mutex_lock(&deadlockCheckMutex);
+    const auto thisThread = get_current_thread();
+    originalFunctions.mutex_lock(deadlockCheckMutex);
     trap_if_deadlock(this);
     waiters[thisThread] = this;
-    originalFunctions.pthread_mutex_unlock(&deadlockCheckMutex);
-    const auto ret = originalFunctions.pthread_mutex_lock(wrapped);
-    originalFunctions.pthread_mutex_lock(&deadlockCheckMutex);
+    originalFunctions.mutex_unlock(deadlockCheckMutex);
+    const auto ret = originalFunctions.mutex_lock(wrapped);
+    originalFunctions.mutex_lock(deadlockCheckMutex);
     waiters.erase(thisThread);
     owner = thisThread;
-    originalFunctions.pthread_mutex_unlock(&deadlockCheckMutex);
+    originalFunctions.mutex_unlock(deadlockCheckMutex);
     return ret;
 }
 
 int MutexInfo::unlock() {
-    originalFunctions.pthread_mutex_lock(&deadlockCheckMutex);
+    originalFunctions.mutex_lock(deadlockCheckMutex);
     owner = {};
-    originalFunctions.pthread_mutex_unlock(&deadlockCheckMutex);
-    return originalFunctions.pthread_mutex_unlock(wrapped);
+    originalFunctions.mutex_unlock(deadlockCheckMutex);
+    return originalFunctions.mutex_unlock(wrapped);
 }
 
-std::optional<pthread_t> MutexInfo::get_owner() const {
+std::optional<native_thread_handle> MutexInfo::get_owner() const {
     return owner;
 }
 
-pthread_mutex_t* MutexInfo::get_wrapped() const {
+native_mutex_handle MutexInfo::get_wrapped() const {
     return wrapped;
 }

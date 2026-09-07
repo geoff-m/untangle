@@ -3,6 +3,7 @@
 #include "untangle/untangle.h"
 #include <gtest/gtest.h>
 #include "WaitCycle.h"
+#include <mutex>
 
 TEST(Basic, NoDeadlock) {
     std::mutex m;

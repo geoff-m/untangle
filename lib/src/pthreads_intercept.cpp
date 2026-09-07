@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <unordered_map>
 
-
 void* findNextSymbol(const char* originalName) {
     (void)dlerror(); // Clear error.
     auto* ret = dlsym(RTLD_NEXT, originalName);
@@ -20,13 +19,21 @@ void* findNextSymbol(const char* originalName) {
 }
 
 using namespace untangle;
+Tpthread_mutex_lock orig_lock;
+int OriginalFunctions::mutex_lock(native_mutex_handle mutex) {
+    return orig_lock(mutex);
+}
+static Tpthread_mutex_unlock orig_unlock;
+int mutex_unlock(native_mutex_handle mutex) {
+    orig_unlock(mutex);
+}
 
 void OriginalFunctions::initialize() {
-    pthread_mutex_init = reinterpret_cast<Tpthread_mutex_init>(findNextSymbol("pthread_mutex_init"));
-    pthread_mutex_destroy = reinterpret_cast<Tpthread_mutex_destroy>(findNextSymbol("pthread_mutex_destroy"));
-    pthread_mutex_lock = reinterpret_cast<Tpthread_mutex_lock>(findNextSymbol("pthread_mutex_lock"));
-    pthread_mutex_unlock = reinterpret_cast<Tpthread_mutex_unlock>(findNextSymbol("pthread_mutex_unlock"));
-    pthread_join = reinterpret_cast<Tpthread_join>(findNextSymbol("pthread_join"));
+    //pthread_mutex_init = reinterpret_cast<Tpthread_mutex_init>(findNextSymbol("pthread_mutex_init"));
+    //pthread_mutex_destroy = reinterpret_cast<Tpthread_mutex_destroy>(findNextSymbol("pthread_mutex_destroy"));
+    orig_lock = reinterpret_cast<Tpthread_mutex_lock>(findNextSymbol("pthread_mutex_lock"));
+    orig_unlock = reinterpret_cast<Tpthread_mutex_unlock>(findNextSymbol("pthread_mutex_unlock"));
+    //pthread_join = reinterpret_cast<Tpthread_join>(findNextSymbol("pthread_join"));
 }
 
 OriginalFunctions untangle::originalFunctions;

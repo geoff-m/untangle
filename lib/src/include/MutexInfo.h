@@ -3,15 +3,16 @@
 #include <string>
 #include <unordered_map>
 #include <variant>
+#include "untangle/untangle.h"
 
 namespace untangle {
     class MutexInfo {
         std::string name;
-        pthread_mutex_t* wrapped;
-        std::optional<pthread_t> owner;
+        native_mutex_handle wrapped;
+        std::optional<native_thread_handle> owner;
 
     public:
-        explicit MutexInfo(pthread_mutex_t* wrapped);
+        explicit MutexInfo(native_mutex_handle wrapped);
 
         void set_name(const char* name);
 
@@ -21,19 +22,19 @@ namespace untangle {
 
         int unlock();
 
-        [[nodiscard]] std::optional<pthread_t> get_owner() const;
+        [[nodiscard]] std::optional<native_thread_handle> get_owner() const;
 
-        [[nodiscard]] pthread_mutex_t* get_wrapped() const;
+        [[nodiscard]] native_mutex_handle get_wrapped() const;
     };
 
-    using Awaitee = std::variant<MutexInfo*, pthread_t>;
+    using Awaitee = std::variant<MutexInfo*, native_thread_handle>;
 
     // Caller should hold deadlockCheckMutex.
     void trap_if_deadlock(Awaitee awaitee);
 
     // thread x awaited thing.
     // guarded by deadlockCheckMutex.
-    extern std::unordered_map<pthread_t, Awaitee> waiters;
+    extern std::unordered_map<native_thread_handle, Awaitee> waiters;
 
 }
 
