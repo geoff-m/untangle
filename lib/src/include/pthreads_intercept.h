@@ -12,13 +12,15 @@ int pthread_mutex_unlock(pthread_mutex_t* __mutex) noexcept(true);
 
 int pthread_join(pthread_t __th, void** __thread_return);
 
+using Tpthread_mutex_init = int (*)(pthread_mutex_t*, const pthread_mutexattr_t*);
+using Tpthread_mutex_destroy = int (*)(pthread_mutex_t*);
+using Tpthread_mutex_lock = int (*)(pthread_mutex_t*);
+using Tpthread_mutex_unlock = int (*)(pthread_mutex_t*);
+using Tpthread_join = int (*)(pthread_t, void**);
+
 namespace untangle {
     /*struct OriginalFunctions {
-        using Tpthread_mutex_init = int (*)(pthread_mutex_t*, const pthread_mutexattr_t*);
-        using Tpthread_mutex_destroy = int (*)(pthread_mutex_t*);
-        using Tpthread_mutex_lock = int (*)(pthread_mutex_t*);
-        using Tpthread_mutex_unlock = int (*)(pthread_mutex_t*);
-        using Tpthread_join = int (*)(pthread_t, void**);
+
 
         void initialize();
         Tpthread_mutex_init pthread_mutex_init = nullptr;
@@ -29,5 +31,5 @@ namespace untangle {
     };*/
     
 
-    extern pthread_mutex_t deadlockCheckMutex;
+    //extern pthread_mutex_t deadlockCheckMutex;
 }

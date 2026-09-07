@@ -5,6 +5,7 @@
 #include "write.h"
 
 using namespace untangle;
+using namespace untangle::writer;
 
 MutexInfo::MutexInfo(native_mutex_handle wrapped)
     : wrapped(wrapped) {
