@@ -4,15 +4,15 @@ include(CheckIncludeFile)
 check_include_file("pthread.h" HAVE_PTHREAD)
 if (HAVE_PTHREAD)
     set(PLATFORM_SOURCES
-            src/include/pthreads_intercept.h
-            src/linux/pthreads_intercept.cpp
-            src/linux/platform-linux.cpp
-            src/linux/library-lifecycle-linux.cpp)
+            src/include/linux/pthreads-intercept.h
+            src/linux/pthreads-intercept.cpp
+            src/linux/platform.cpp
+            src/linux/library-lifecycle.cpp)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(PLATFORM_SOURCES
-            src/windows/platform-windows.cpp
+            src/windows/platform.cpp
             src/windows/detours-intercept.cpp
-            src/windows/library-lifecycle-windows.cpp)
+            src/windows/library-lifecycle.cpp)
 else ()
     message(FATAL_ERROR "Unsupported platform")
 endif ()
