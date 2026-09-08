@@ -1,0 +1,6 @@
+function(link_detours TARGET)
+	find_path(DETOURS_INCLUDE_DIRS "detours/detours.h")
+	find_library(DETOURS_LIBRARY detours REQUIRED)
+	target_include_directories(${TARGET} PRIVATE ${DETOURS_INCLUDE_DIRS})
+	target_link_libraries(${TARGET} PRIVATE ${DETOURS_LIBRARY})
+endfunction()

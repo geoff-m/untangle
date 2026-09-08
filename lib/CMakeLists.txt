@@ -5,16 +5,18 @@ check_include_file("pthread.h" HAVE_PTHREAD)
 if (HAVE_PTHREAD)
     set(PLATFORM_SOURCES
             src/include/pthreads_intercept.h
-            src/pthreads_intercept.cpp
-            src/platform-linux.cpp
-            src/library-lifecycle-linux.cpp)
+            src/linux/pthreads_intercept.cpp
+            src/linux/platform-linux.cpp
+            src/linux/library-lifecycle-linux.cpp)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(PLATFORM_SOURCES
-            src/platform-windows.cpp)
+            src/windows/platform-windows.cpp
+            src/windows/detours-intercept.cpp
+            src/windows/library-lifecycle-windows.cpp)
 else ()
     message(FATAL_ERROR "Unsupported platform")
 endif ()
-message("platform_srcs: ${PLATFORM_SOURCES}")
+
 add_library(untangle SHARED
         include/untangle/untangle.h
         src/include/MutexInfo.h
@@ -24,7 +26,17 @@ add_library(untangle SHARED
         ${PLATFORM_SOURCES}
         src/include/platform.h
         src/unreachable.cpp
-        src/library-lifecycle.cpp)
+)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set_target_properties(untangle PROPERTIES OUTPUT_NAME "untangle64")
+    link_detours(untangle)
+    if(MSVC)
+        set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    endif()
+endif()
 
 target_include_directories(untangle PRIVATE src/include)
 target_include_directories(untangle PUBLIC include)
+
+
