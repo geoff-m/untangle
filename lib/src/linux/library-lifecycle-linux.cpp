@@ -1,4 +1,7 @@
 #include "platform.h"
+#include "write.h"
+
+using namespace untangle;
 
 __attribute__((constructor))
 void ctor() {
